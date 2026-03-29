@@ -911,7 +911,6 @@ html,body{font-family:var(--font);background:var(--bg);color:var(--t1);height:10
     <button class="pp-tab active" id="ppTabMsgs" onclick="ppSwitchTab('msgs')">Mensagens<span class="tab-badge" id="ppMsgBadge"></span></button>
     <button class="pp-tab" id="ppTabNurse" onclick="ppSwitchTab('nurse')">Enfermagem</button>
     <button class="pp-tab" id="ppTabSymptoms" onclick="ppSwitchTab('symptoms')">Sintomas</button>
-    <button class="pp-tab" id="ppTabStatus" onclick="ppSwitchTab('status')">Status</button>
   </div>
   <div class="pp-body" id="ppBody"></div>
   <div class="pp-reply" id="ppReplyBar" style="display:none">
@@ -1627,7 +1626,7 @@ const portalData={
       {from:'nurse',name:'Enf. Ana',time:'24/03 10:30',text:'Bom dia dona Maria! Esse ganho de peso merece atenção sim. Vou comunicar o médico. Por enquanto, mantenha os pés elevados e não beba mais que 1 litro de líquido hoje. Vou passar aí amanhã cedo.'},
       {from:'patient',name:'Maria Aparecida',time:'23/03 17:00',text:'Enfermeira, tomei o Lasix como você orientou. Acho que tô fazendo mais xixi hoje, né bom?',unread:false},
     ],
-    notes:[
+    nurse:[
       {type:'info',author:'Enf. Ana Beatriz Costa',time:'24/03 09:20',text:'Visita rotina ICC. Peso 68.2kg (+1.2kg em 48h). PA 138/88, SpO2 95%. Edema +1 tornozelos. Médico notificado. Aguardando orientação sobre ajuste diurético. Cuidadora orientada sobre restrição hídrica.'},
       {type:'alerta',author:'Enf. Ana Beatriz Costa',time:'22/03 09:00',text:'Cuidadora (filha) relata que paciente não tomou Furosemida nos últimos 2 dias — "achou que não precisava porque estava se sentindo bem". Orientadas sobre importância da adesão. Organograma de medicações revisado e fixado na geladeira.'},
       {type:'triagem',author:'Enf. Carla Souza',time:'15/03 08:30',text:'Visita rotina. PA 132/86, FC 70, SpO2 96%, Tax 36.0°C. Peso 67.0kg — estável. Edema ausente. Paciente bem humorada. Sem queixas. Medicações corretas.'},
@@ -1647,7 +1646,7 @@ const portalData={
       {from:'nurse',name:'Enf. Ana',time:'25/03 11:15',text:'Obrigada por avisar, seu José! Já estou indo ver pessoalmente. Não mexa na cobertura até eu chegar. Se sentir dor forte ou ver vermelhidão espalhando, me ligue.'},
       {from:'patient',name:'José Carlos',time:'24/03 20:00',text:'Tomei a insulina certa hora. Glicemia deu 165.',unread:false},
     ],
-    notes:[
+    nurse:[
       {type:'info',author:'Enf. Ana Beatriz Costa',time:'25/03 10:35',text:'Curativo úlcera venosa. Área 4.2cm² (era 4.8 em 01/03 — redução 12.5%). Exsudato moderado. Sem sinal clínico de infecção. Alginato + compressiva. Foto arquivada. Glicemia 187mg/dL — médico notificado sobre controle insatisfatório.'},
       {type:'alerta',author:'Enf. Ana Beatriz Costa',time:'18/03 10:00',text:'Paciente tentou remover curativo sozinho na noite anterior — referiu "coceira". Orientado sobre riscos. Curativo reforçado. Familiar (vizinha que auxilia) comunicada para observar.'},
     ],
@@ -1663,7 +1662,7 @@ const portalData={
       {from:'patient',name:'Antônia Pereira',time:'25/03 09:00',text:'Enfermeira... tô com falta de ar mais forte hoje. O remédio não tá aliviando tanto.',unread:true},
       {from:'nurse',name:'Enf. Ana',time:'25/03 09:10',text:'Dona Antônia, já estou a caminho. Enquanto isso, fique com o cabeceiro bem elevado. Sua filha está com a senhora?'},
     ],
-    notes:[
+    nurse:[
       {type:'alerta',author:'Enf. Ana Beatriz Costa',time:'25/03 14:10',text:'Piora de dispneia. SpO2 88% com O2 2L/min. Dor controlada EVA 3. Médico paliativista acionado. Família orientada sobre progressão natural. Midazolam SC 2.5mg administrado conforme plano de cuidados. Alívio parcial.'},
       {type:'info',author:'Enf. Carla Souza',time:'20/03 14:00',text:'Visita diária. Paciente tranquila. Dor EVA 2. SpO2 91% com O2. Família (filha e neta) presente. Conversa sobre progressão realizada. Família demonstra compreensão e aceite do processo.'},
     ],
@@ -1685,18 +1684,148 @@ for(let i=0;i<pts.length;i++){
 
 let ppTab='msgs';
 
+function tpRenderConsultList(){
+  const consults=tpConsults[selPt]||[];
+  const el=document.getElementById('tpConsultCards');
+  if(!el)return;
+  if(!consults.length){el.innerHTML='<div style="text-align:center;padding:40px 20px;font-size:13px;color:#8A9E8A">Nenhuma visita registrada ainda.</div>';return;}
+  el.innerHTML=consults.map((c,i)=>`<div class="tp-consult-card" onclick="tpOpenDetail(${i})">
+    <div class="tp-cc-top"><span class="tp-cc-title">${c.title}</span><span class="tp-cc-dots">⋮</span></div>
+    <div class="tp-cc-template">${c.tpl}</div>
+    <div class="tp-cc-bottom">
+      ${c.status==='suggestions'?`<div class="tp-cc-badge suggestions"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>${c.suggestions} Sugestões</div>`:`<div class="tp-cc-badge done">Finalizada</div>`}
+      <span class="tp-cc-time">${c.time}</span>
+    </div>
+  </div>`).join('');
+}
+
+function tpOpenDetail(idx){
+  const consults=tpConsults[selPt]||[];
+  const c=consults[idx];if(!c)return;
+  document.getElementById('tpDetailTitle').textContent=c.title;
+  let h='<div class="tp-detail-disclaimer">Este conteúdo foi gerado com IA e pode conter alguns erros. Por favor, verifique a informação.</div>';
+  c.sections.forEach(s=>{
+    h+=`<div class="tp-detail-section"><div class="tp-detail-sec-header" onclick="tpToggleSection(this)"><div class="tp-detail-sec-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="${s.open?'open':''}"><polyline points="6,9 12,15 18,9"/></svg>${s.title}</div><span class="tp-detail-sec-dots">⋮</span></div><div class="tp-detail-sec-body ${s.open?'open':''}">${s.content}</div></div>`;
+  });
+  document.getElementById('tpDetailBody').innerHTML=h;
+  tpShowScreen('detail');
+}
+
+function tpToggleSection(el){el.nextElementSibling.classList.toggle('open');el.querySelector('svg').classList.toggle('open');}
+
+function tpRenderTemplates(){
+  const el=document.getElementById('tpTplList');if(!el)return;
+  el.innerHTML=tpTemplates.map((t,i)=>`<div class="tp-tpl-item ${i===tpSelTpl?'selected':''}" onclick="tpSelTpl=${i};tpRenderTemplates()"><span class="tp-tpl-name">${t}</span><div class="tp-tpl-radio"></div></div>`).join('');
+}
+
+function tpStartConsult(){
+  buildSimForPatient();
+  tpRecState='recording';tpRecSec=0;tpSimIdx=0;tpSimChar=0;tpRecPaused=false;
+  tpShowScreen('rec');
+  const p=pts.find(x=>x.id===selPt);
+  const ctx=document.getElementById('tpRecCtx');
+  if(ctx)ctx.innerHTML=`<div class="tp-rec-ctx-av" style="background:${p.col}">${p.in}</div><div class="tp-rec-ctx-info"><div class="tp-rec-ctx-name">${p.name}</div><div class="tp-rec-ctx-sub">${p.dx}</div></div><div class="tp-rec-ctx-tpl">${tpTemplates[tpSelTpl].split(' - ')[0]}</div>`;
+  document.getElementById('tpRecTitle').textContent='Gravando';
+  document.getElementById('tpRecDot').className='tp-rec-dot';
+  document.getElementById('tpRecBody').innerHTML='';
+  document.getElementById('tpRecControls').style.display='flex';
+  document.getElementById('tpRecFinal').style.display='none';
+  const wf=document.getElementById('tpRecWave');wf.innerHTML='';wf.style.display='flex';tpBars=[];
+  for(let i=0;i<45;i++){const b=document.createElement('div');b.className='tp-rec-wave-bar';b.style.height='3px';wf.appendChild(b);tpBars.push(b);}
+  tpUpdateTimer();
+  tpTimer=setInterval(()=>{if(!tpRecPaused){tpRecSec++;tpUpdateTimer();}},1000);
+  tpWaveInt=setInterval(()=>{if(!tpRecPaused)tpBars.forEach(b=>b.style.height=(3+Math.random()*28)+'px');},100);
+  setTimeout(()=>tpTypeNext(),800);
+}
+
+function tpUpdateTimer(){const m=String(Math.floor(tpRecSec/60)).padStart(2,'0'),s=String(tpRecSec%60).padStart(2,'0');document.getElementById('tpRecTimer').textContent=m+':'+s;}
+
+function tpTypeNext(){
+  if(tpSimIdx>=spSim.data.length)return;
+  const item=spSim.data[tpSimIdx];
+  const body=document.getElementById('tpRecBody');
+  let sec=document.getElementById('tpSec-'+tpSimIdx);
+  if(!sec){sec=document.createElement('div');sec.className='tp-rec-section';sec.id='tpSec-'+tpSimIdx;sec.innerHTML=`<div class="tp-rec-card"><div class="tp-rec-tag writing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>${item.s}</div><div class="tp-rec-text"></div></div>`;body.appendChild(sec);body.scrollTop=body.scrollHeight;}
+  const txt=sec.querySelector('.tp-rec-text');
+  tpSimInt=setInterval(()=>{
+    if(tpRecPaused)return;
+    if(tpSimChar<item.t.length){tpSimChar+=Math.min(2+Math.floor(Math.random()*3),item.t.length-tpSimChar);txt.innerHTML=item.t.substring(0,tpSimChar)+'<span class="tp-rec-cursor"></span>';body.scrollTop=body.scrollHeight;}
+    else{clearInterval(tpSimInt);txt.textContent=item.t;sec.querySelector('.tp-rec-tag').classList.remove('writing');tpSimIdx++;tpSimChar=0;setTimeout(()=>{if(!tpRecPaused&&tpRecState==='recording')tpTypeNext();},600);}
+  },35);
+}
+
+function tpTogglePause(){
+  tpRecPaused=!tpRecPaused;
+  const btn=document.getElementById('tpRecPause');
+  if(tpRecPaused){document.getElementById('tpRecDot').classList.add('paused');document.getElementById('tpRecTitle').textContent='Pausado';tpBars.forEach(b=>b.style.height='3px');btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>Retomar';}
+  else{document.getElementById('tpRecDot').classList.remove('paused');document.getElementById('tpRecTitle').textContent='Gravando';btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>Pausar';tpTypeNext();}
+}
+
+function openScribe(){
+  const copBody=document.getElementById('copilotoBody');
+  const copArrow=document.getElementById('copilotoArrow');
+  const copToggle=document.getElementById('copilotoToggle');
+  if(copBody&&copBody.style.maxHeight!=='0px'){
+    copBody.style.maxHeight='0px';copBody.style.opacity='0';
+    if(copArrow)copArrow.style.transform='rotate(-90deg)';
+    if(copToggle)copToggle.textContent='Expandir';
+  }
+  document.querySelector('.main').classList.add('scribe-open');
+  document.querySelector('.main-content').classList.add('consult-mode');
+  document.getElementById('telepatiaPanel').classList.add('open');
+  document.getElementById('tiFloat').classList.toggle('scribe-shifted',document.getElementById('tiFloat').classList.contains('open'));
+  tpRenderConsultList();
+  tpShowScreen('list');
+}
+
+function tpShowScreen(name){
+  ['tpScreenList','tpScreenTemplates','tpScreenRec','tpScreenDetail'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+  const map={list:'tpScreenList',templates:'tpScreenTemplates',rec:'tpScreenRec',detail:'tpScreenDetail'};
+  const el=document.getElementById(map[name]);if(el)el.style.display='flex';
+}
+
+function closeTelepatia(){
+  tpRecState='idle';clearInterval(tpTimer);clearInterval(tpSimInt);clearInterval(tpWaveInt);
+  document.querySelector('.main').classList.remove('scribe-open');
+  document.querySelector('.main-content').classList.remove('consult-mode');
+  document.getElementById('telepatiaPanel').classList.remove('open');
+  const tiF=document.getElementById('tiFloat');if(tiF)tiF.classList.remove('scribe-shifted');
+  const rec=document.getElementById('tpRecScreen');if(rec)rec.classList.remove('active');
+}
+
+let tiOpen=false;
+function openTI(){
+  tiOpen=true;
+  const p=pts.find(x=>x.id===selPt);
+  const fl=document.getElementById('tiFloat');
+  fl.classList.add('open');
+  if(document.getElementById('telepatiaPanel').classList.contains('open'))fl.classList.add('scribe-shifted');
+  document.getElementById('tfContext').innerHTML=`Contexto: <strong>${p.name}</strong> · ${p.dx} · ${p.proto}`;
+  document.getElementById('tfMsgs').innerHTML=`<div class="tf-msg bot">Olá, Enf. Ana! Estou analisando o caso de <strong>${p.name.split(' ')[0]}</strong>. ${p.dx}. Plano: ${p.proto}. Como posso ajudar?</div>`;
+  tiHistory=[];
+}
+
+function closeTI(){
+  tiOpen=false;
+  document.getElementById('tiFloat').classList.remove('open');
+  document.getElementById('tiFloat').classList.remove('scribe-shifted');
+}
+
 function openPortal(){
   const p=pts.find(x=>x.id===selPt);
-  const pd=portalData[selPt];
+  const pd=portalData[selPt]||{msgs:[],nurse:[],symptoms:[],status:{seenByNurse:true},seenBy:'—',lastVisit:'—'};
   document.getElementById('ppTitle').textContent=`Portal — ${p.name.split(' ')[0]}`;
   document.getElementById('ppSub').textContent=p.dx;
   
   // Status bar
   const dot=document.getElementById('ppSeenDot');
   const stxt=document.getElementById('ppSeenText');
-  if(pd.status.seenByNurse){dot.className='pp-status-dot seen';stxt.textContent=`Triada por ${pd.seenBy||'enfermagem'}`;}
+  const st=pd.status||{};
+  if(st.seenByNurse){dot.className='pp-status-dot seen';stxt.textContent=`Triada por ${pd.seenBy||'enfermagem'}`;}
   else{dot.className='pp-status-dot unseen';stxt.textContent='Aguardando triagem';}
-  document.getElementById('ppLastVisit').textContent=pd.lastVisit;
+  document.getElementById('ppLastVisit').textContent=pd.lastVisit||'—';
   
   // Badge
   const unread=pd.msgs.filter(m=>m.unread).length;
@@ -1720,7 +1849,7 @@ function closePortal(){
 function ppSwitchTab(tab){
   ppTab=tab;
   document.querySelectorAll('.pp-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(tab==='msgs'?'ppTabMsgs':tab==='nurse'?'ppTabNurse':tab==='symptoms'?'ppTabSymptoms':'ppTabStatus').classList.add('active');
+  const tabMap={msgs:'ppTabMsgs',nurse:'ppTabNurse',symptoms:'ppTabSymptoms'};if(tabMap[tab])document.getElementById(tabMap[tab]).classList.add('active');
   document.getElementById('ppReplyBar').style.display=tab==='msgs'?'flex':'none';
   renderPortalContent();
 }
@@ -1739,25 +1868,26 @@ function ppSendReply(){
 }
 
 function renderPortalContent(){
-  const pd=portalData[selPt];
+  const pd=portalData[selPt]||{msgs:[],nurse:[],symptoms:[],status:{seenByNurse:true},seenBy:'—',lastVisit:'—'};
   const body=document.getElementById('ppBody');
+  if(!body)return;
   let h='';
   
   if(ppTab==='msgs'){
-    if(!pd.msgs.length){h='<div style="text-align:center;padding:40px;font-size:12px;color:var(--t4);">Nenhuma mensagem.</div>';}
+    if(!pd.msgs||!pd.msgs.length){h='<div style="text-align:center;padding:40px;font-size:12px;color:var(--t4);">Nenhuma mensagem.</div>';}
     else pd.msgs.forEach(m=>{
       const isPatient=m.from==='patient';
       h+=`<div class="pp-msg ${m.unread?'pp-msg-unread':''}">
-        <div class="pp-msg-av" style="background:${isPatient?'rgba(124,77,255,0.1)':'var(--g1)'}; color:${isPatient?'#7C4DFF':'var(--g7)'}">${isPatient?'🧑':'👨‍⚕️'}</div>
+        <div class="pp-msg-av" style="background:${isPatient?'rgba(124,77,255,0.1)':'var(--g1)'}; color:${isPatient?'#7C4DFF':'var(--g7)'}">${isPatient?'🧑':'👩‍⚕️'}</div>
         <div class="pp-msg-content">
-          <div class="pp-msg-header"><span class="pp-msg-name">${m.name}</span><span class="pp-msg-role">${isPatient?'Paciente':'Médico'}</span><span class="pp-msg-time">${m.time}</span></div>
+          <div class="pp-msg-header"><span class="pp-msg-name">${m.name}</span><span class="pp-msg-role">${isPatient?'Paciente':'Enfermagem'}</span><span class="pp-msg-time">${m.time}</span></div>
           <div class="pp-msg-text ${isPatient?'patient':''}">${m.text}</div>
         </div>
       </div>`;
     });
   } else if(ppTab==='nurse'){
-    if(!pd.nurse.length){h='<div style="text-align:center;padding:40px;font-size:12px;color:var(--t4);">Sem registros de enfermagem.</div>';}
-    else pd.nurse.forEach(n=>{
+    if(!pd.nurse||!pd.nurse.length){h='<div style="text-align:center;padding:40px;font-size:12px;color:var(--t4);">Sem registros de enfermagem.</div>';}
+    else (pd.nurse||[]).forEach(n=>{
       h+=`<div class="pp-insight ${n.type}">
         <div class="pp-insight-header">
           <span class="pp-insight-icon">${n.type==='triagem'?'🩺':n.type==='alerta'?'⚠️':'ℹ️'}</span>
@@ -1769,7 +1899,7 @@ function renderPortalContent(){
       </div>`;
     });
   } else if(ppTab==='symptoms'){
-    const syms=pd.symptoms||[];
+    const syms=pd.symptoms||pd.wellbeing||[];
     if(!syms.length){h='<div style="text-align:center;padding:40px;font-size:12px;color:var(--t4);">Nenhum registro de sintomas.</div>';}
     else {
       h+='<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Diário de bem-estar — registrado pelo paciente via HomeCare</div>';
@@ -1958,7 +2088,7 @@ function navGo(tab){
   else if(tab==='agenda'){transitionContent(renderAgendaScreen);}
   else if(tab==='patients'){transitionContent(renderPatientsScreen);}
   else if(tab==='radar'){transitionContent(renderRadarScreen);}
-  else if(tab==='ti'){tiFullHistory=[];transitionContent(renderTIScreen);}
+  else if(tab==='ti'){tiFullHistory=[];tiFullConvHistory=[];transitionContent(renderTIScreen);}
 }
 
 // ===== MINHA AGENDA — FULLSCREEN =====
@@ -2022,7 +2152,7 @@ function renderPatientsScreen(){
   document.getElementById('mainHeader').innerHTML='';
   const groups={};
   pts.forEach(p=>{if(!groups[p.grp])groups[p.grp]=[];groups[p.grp].push(p);});
-  const groupOrder=['SNC','Idoso Frágil','Pulmão','Hematológico','Ginecológico','Urológico','TGI','Outros'];
+  const groupOrder=grpOrder.concat(Object.keys(groups).filter(g=>!grpOrder.includes(g)));
 
   let h=`<div style="padding:28px 32px 40px">`;
   h+=`<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px">`;
@@ -2148,21 +2278,48 @@ function tiFullSend(){
   _tiFullPost(txt);
 }
 function tiFullQuick(txt){_tiFullPost(txt);}
+let tiFullConvHistory=[];
 function _tiFullPost(txt){
   const msgEl=document.getElementById('tiFullMsgs');if(!msgEl)return;
   const uHtml=`<div style="display:flex;justify-content:flex-end"><div style="max-width:75%;padding:10px 14px;border-radius:16px;border-bottom-right-radius:4px;background:var(--g7);color:white;font-size:12px;line-height:1.55">${txt}</div></div>`;
   msgEl.innerHTML+=uHtml;
   tiFullHistory.push(uHtml);
   msgEl.scrollTop=msgEl.scrollHeight;
-  const thinkHtml=`<div id="tiThink" style="display:flex;gap:8px;align-items:flex-start"><div style="width:28px;height:28px;border-radius:8px;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🤖</div><div style="padding:10px 14px;border-radius:16px;border-bottom-left-radius:4px;background:var(--surface);border:1px solid var(--border);font-size:11px;color:var(--t3)">Telepatia Intelligence está analisando...</div></div>`;
-  msgEl.innerHTML+=thinkHtml;msgEl.scrollTop=msgEl.scrollHeight;
-  setTimeout(()=>{
-    const r=localTIResponse(txt,null);
-    const think=document.getElementById('tiThink');if(think)think.remove();
-    const botHtml=`<div style="display:flex;gap:8px;align-items:flex-start"><div style="width:28px;height:28px;border-radius:8px;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🤖</div><div style="padding:10px 14px;border-radius:16px;border-bottom-left-radius:4px;background:var(--surface);border:1px solid var(--border);font-size:12px;line-height:1.55;color:var(--t1);max-width:78%">${r}</div></div>`;
+  // Use real Anthropic API via callTI
+  callTIFull(txt);
+}
+
+async function callTIFull(txt){
+  const msgEl=document.getElementById('tiFullMsgs');if(!msgEl)return;
+  const typingId='tift_'+Date.now();
+  const botStyleFull=`style="display:flex;gap:8px;align-items:flex-start"`;
+  const innerStyle=`padding:10px 14px;border-radius:16px;border-bottom-left-radius:4px;background:var(--surface);border:1px solid var(--border);font-size:12px;line-height:1.55;color:var(--t1);max-width:78%`;
+  msgEl.innerHTML+=`<div id="${typingId}" style="display:flex;gap:8px;align-items:flex-start"><div style="width:28px;height:28px;border-radius:8px;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🤖</div><div style="${innerStyle}"><span style="opacity:0.5">Telepatia Intelligence está analisando...</span></div></div>`;
+  msgEl.scrollTop=msgEl.scrollHeight;
+  tiFullConvHistory.push({role:'user',content:txt});
+  try{
+    const sysContent=tiSystemPrompt+buildPatientContext();
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sysContent,messages:tiFullConvHistory.slice(-10)})
+    });
+    if(!resp.ok)throw new Error('API error '+resp.status);
+    const data=await resp.json();
+    const reply=data.content?.map(c=>c.text||'').join('');
+    if(!reply)throw new Error('Empty');
+    tiFullConvHistory.push({role:'assistant',content:reply});
+    const el=document.getElementById(typingId);if(el)el.remove();
+    const botHtml=`<div style="display:flex;gap:8px;align-items:flex-start"><div style="width:28px;height:28px;border-radius:8px;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🤖</div><div style="${innerStyle}">${reply.split(String.fromCharCode(10)).join('<br>')}</div></div>`;
     const m2=document.getElementById('tiFullMsgs');if(!m2)return;
     m2.innerHTML+=botHtml;tiFullHistory.push(botHtml);m2.scrollTop=m2.scrollHeight;
-  },700);
+  }catch(e){
+    const el=document.getElementById(typingId);if(el)el.remove();
+    const reply=localTIResponse(txt,null);
+    tiFullConvHistory.push({role:'assistant',content:reply});
+    const botHtml=`<div style="display:flex;gap:8px;align-items:flex-start"><div style="width:28px;height:28px;border-radius:8px;background:var(--g1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🤖</div><div style="${innerStyle}">${reply}</div></div>`;
+    const m2=document.getElementById('tiFullMsgs');if(!m2)return;
+    m2.innerHTML+=botHtml;tiFullHistory.push(botHtml);m2.scrollTop=m2.scrollHeight;
+  }
 }
 
 // Render sidebar avatars
@@ -2401,7 +2558,7 @@ async function callTI(userMsg,msgsDivId,history,patientContext){
     if(!reply)throw new Error('Empty response');
     history.push({role:'assistant',content:reply});
     const el=document.getElementById(typingId);if(el)el.remove();
-    msgs.innerHTML+=`<div ${botStyle}>${reply.replace(/\n/g,'<br>')}</div>`;
+    msgs.innerHTML+=`<div ${botStyle}>${reply.split(String.fromCharCode(10)).join('<br>')}</div>`;
   }catch(e){
     // Fallback: intelligent local response
     const el=document.getElementById(typingId);if(el)el.remove();
