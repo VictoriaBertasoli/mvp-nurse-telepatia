@@ -1761,6 +1761,42 @@ function tpTogglePause(){
   else{document.getElementById('tpRecDot').classList.remove('paused');document.getElementById('tpRecTitle').textContent='Gravando';btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>Pausar';tpTypeNext();}
 }
 
+
+function tpStopRec(){
+  tpRecState='done';
+  clearInterval(tpTimer);clearInterval(tpSimInt);clearInterval(tpWaveInt);
+  const dot=document.getElementById('tpRecDot');
+  if(dot)dot.className='tp-rec-dot done';
+  const title=document.getElementById('tpRecTitle');
+  if(title)title.textContent='Visita finalizada';
+  const wave=document.getElementById('tpRecWave');
+  if(wave)wave.style.display='none';
+  const controls=document.getElementById('tpRecControls');
+  if(controls)controls.style.display='none';
+  const body=document.getElementById('tpRecBody');
+  if(body){
+    body.innerHTML='<div class="tp-rec-final-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>Nota gerada com sucesso</div>';
+    spSim.data.forEach(s=>{body.innerHTML+=`<div class="tp-rec-section"><div class="tp-rec-card"><div class="tp-rec-tag">${s.s}</div><div class="tp-rec-text">${s.t}</div></div></div>`;});
+    body.scrollTop=0;
+  }
+  const final=document.getElementById('tpRecFinal');
+  if(final)final.style.display='flex';
+}
+
+function tpSendNote(){
+  const body=document.getElementById('tpRecBody');
+  if(body){
+    body.innerHTML+='<div style="text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:6px">✅</div><div style="font-size:13px;font-weight:700;color:#1A6B3C;margin-bottom:3px">Enviado ao Telepatia</div><div style="font-size:10px;color:#5A6E5A">Registro salvo no prontuário</div></div>';
+    body.scrollTop=body.scrollHeight;
+  }
+  // Add to consult list
+  const p=pts.find(x=>x.id===selPt);
+  const now=new Date();
+  const dateStr=(now.getDate()+'').padStart(2,'0')+'/'+(now.getMonth()+1+'').padStart(2,'0')+' · '+(now.getHours()+'').padStart(2,'0')+':'+(now.getMinutes()+'').padStart(2,'0');
+  if(!tpConsults[selPt])tpConsults[selPt]=[];
+  tpConsults[selPt].unshift({id:'c_'+Date.now(),title:'Visita: '+dateStr,tpl:tpTemplates[tpSelTpl],status:'done',time:dateStr,suggestions:0,sections:spSim.data.map(s=>({title:s.s,content:s.t,open:true}))});
+}
+
 function openScribe(){
   const copBody=document.getElementById('copilotoBody');
   const copArrow=document.getElementById('copilotoArrow');
@@ -1928,6 +1964,7 @@ function renderPortalContent(){
 }
 
 buildChips();filterPts();
+tpRenderTemplates();
 // Show welcome state on main content
 // ===== CDSS DATA =====
 const cdss={
@@ -2765,6 +2802,7 @@ function importPatientJSON(input){
       p.alerts.forEach(a=>{checklists[p.id].push({t:a.tx,tag:a.tp==='urgent'?'urgent':'routine',done:false});});
       // Refresh sidebar
       buildChips();filterPts();
+tpRenderTemplates();
       // Select the new patient
       sel(p.id);
       // Show success notification
